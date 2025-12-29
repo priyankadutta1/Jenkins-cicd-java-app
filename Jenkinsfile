@@ -15,7 +15,7 @@ pipeline {
     }
 
     tools {
-        maven "Maven"      // Jenkins → Global Tool Configuration
+        maven "Maven"
         jdk "Java-17"
     }
 
@@ -38,8 +38,8 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonarqube') {
                     sh """
-                      mvn sonar:sonar \
-                      -Dsonar.projectKey=${SONAR_PROJECT_KEY}
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY}
                     """
                 }
             }
@@ -56,7 +56,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                  docker build -t $FULL_IMAGE .
+                    docker build -t $FULL_IMAGE .
                 '''
             }
         }
@@ -64,7 +64,7 @@ pipeline {
         stage('Authenticate to Artifact Registry') {
             steps {
                 sh '''
-                  gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+                    gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
                 '''
             }
         }
@@ -72,7 +72,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 sh '''
-                  docker push $FULL_IMAGE
+                    docker push $FULL_IMAGE
                 '''
             }
         }
@@ -80,8 +80,7 @@ pipeline {
         stage('Deploy to GKE') {
             steps {
                 sh '''
-                  sed -i "s|IMAGE_PLACEHOLDER|$FULL_IMAGE|g" k8s/deployment.yaml
-                  kubectl apply -f k8s/deployment.yaml
+                    sed "s|IMAGE_PLACEHOLDER|$FULL_IMAGE|g" k8s/deployment.yaml | kubectl apply -f -
                 '''
             }
         }
@@ -92,8 +91,9 @@ pipeline {
             echo "✅ CI/CD Pipeline completed successfully"
         }
         failure {
-            echo "❌ Pipeline failed"
+            echo "❌ CI/CD Pipeline failed"
         }
     }
 }
+
 
