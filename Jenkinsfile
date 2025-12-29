@@ -1,18 +1,22 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'Maven3'
-        jdk 'Java17'
+    environment {
+        PROJECT_ID = "internal-sandbox-446612"
+        REGION     = "asia-south1"
+        REPO       = "java-app-repo"
+        IMAGE_NAME = "java-app"
+        IMAGE_TAG  = "${BUILD_NUMBER}"
+
+        REGISTRY   = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+        FULL_IMAGE = "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+        SONAR_PROJECT_KEY = "java-app"
     }
 
-    environment {
-        PROJECT_ID = 'internal-sandbox-446612'
-        REGION     = 'asia-south1'
-        REPO       = 'java-app-repo'
-        IMAGE_NAME = 'java-app'
-        IMAGE_TAG  = 'latest'
-        IMAGE_URI  = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
+    tools {
+        maven "Maven"      // Jenkins → Global Tool Configuration
+        jdk "Java-17"
     }
 
     stages {
@@ -20,7 +24,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/<your-username>/java-app.git'
+                    url: 'https://github.com/priyankadutta1/Jenkins-cicd-java-app.git'
             }
         }
 
@@ -30,13 +34,45 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh """
+                      mvn sonar:sonar \
+                      -Dsonar.projectKey=${SONAR_PROJECT_KEY}
+                    """
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 sh '''
-                docker build -t $IMAGE_NAME:$IMAGE_TAG .
-                docker tag $IMAGE_NAME:$IMAGE_TAG $IMAGE_URI
-                gcloud auth configure-docker ${REGION}-docker.pkg.dev -q
-                docker push $IMAGE_URI
+                  docker build -t $FULL_IMAGE .
+                '''
+            }
+        }
+
+        stage('Authenticate to Artifact Registry') {
+            steps {
+                sh '''
+                  gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh '''
+                  docker push $FULL_IMAGE
                 '''
             }
         }
@@ -44,8 +80,8 @@ pipeline {
         stage('Deploy to GKE') {
             steps {
                 sh '''
-                kubectl apply -f k8s/deployment.yaml
-                kubectl rollout status deployment/java-app
+                  sed -i "s|IMAGE_PLACEHOLDER|$FULL_IMAGE|g" k8s/deployment.yaml
+                  kubectl apply -f k8s/deployment.yaml
                 '''
             }
         }
@@ -53,10 +89,11 @@ pipeline {
 
     post {
         success {
-            echo '✅ Pipeline completed successfully'
+            echo "✅ CI/CD Pipeline completed successfully"
         }
         failure {
-            echo '❌ Pipeline failed'
+            echo "❌ Pipeline failed"
         }
     }
 }
+
