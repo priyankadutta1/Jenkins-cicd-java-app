@@ -1,7 +1,8 @@
-package com.example;
+@RestController
+public class HelloController {
 
-public class App {
-    public static void main(String[] args) {
-        System.out.println("Hello from Jenkins CI/CD Pipeline on GCP!");
+    @GetMapping("/")
+    public String hello() {
+        return "Hello from Jenkins CI/CD Pipeline on GCP!";
     }
 }
