@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: java-app
-          image: IMAGE_PLACEHOLDER
+          image: asia-south1-docker.pkg.dev/internal-sandbox-446612/java-app-repo
           ports:
             - containerPort: 8080
 ---
