@@ -80,7 +80,7 @@ pipeline {
         stage('Deploy to GKE') {
             steps {
                 sh '''
-                    sed "s|IMAGE_PLACEHOLDER|$FULL_IMAGE|g" k8s/deployment.yaml | kubectl apply -f -
+                    sed "s|asia-south1-docker.pkg.dev/internal-sandbox-446612/java-app-repo/java-app:latest|$FULL_IMAGE|g" k8s/deployment.yaml | kubectl apply -f -
                 '''
             }
         }
